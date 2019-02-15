@@ -1,11 +1,5 @@
-__author__ = "Jakob Aungiers"
-__copyright__ = "Jakob Aungiers 2018"
-__version__ = "2.0.0"
-__license__ = "MIT"
-
 import os
 import json
-import time
 import math
 import matplotlib.pyplot as plt
 from core.data_processor import DataLoader
@@ -25,7 +19,7 @@ def plot_results_multiple(predicted_data, true_data, prediction_len):
     fig = plt.figure(facecolor='white')
     ax = fig.add_subplot(111)
     ax.plot(true_data, label='True Data')
-	# Pad the list of predictions to shift it in the graph to it's correct start
+    # Pad the list of predictions to shift it in the graph to it's correct start
     for i, data in enumerate(predicted_data):
         padding = [None for p in range(i * prediction_len)]
         plt.plot(padding + data, label='Prediction')
@@ -45,21 +39,23 @@ def main():
 
     model = Model()
     model.build_model(configs)
+
+    '''
+    # in-memory training
     x, y = data.get_train_data(
         seq_len=configs['data']['sequence_length'],
         normalise=configs['data']['normalise']
     )
 
+    model.train(
+        x,
+        y,
+        epochs = configs['training']['epochs'],
+        batch_size = configs['training']['batch_size'],
+        save_dir = configs['model']['save_dir']
+    )
     '''
-	# in-memory training
-	model.train(
-		x,
-		y,
-		epochs = configs['training']['epochs'],
-		batch_size = configs['training']['batch_size'],
-		save_dir = configs['model']['save_dir']
-	)
-	'''
+
     # out-of memory generative training
     steps_per_epoch = math.ceil((data.len_train - configs['data']['sequence_length']) / configs['training']['batch_size'])
     model.train_generator(
