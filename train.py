@@ -1,30 +1,9 @@
 import os
 import json
 import math
-import matplotlib.pyplot as plt
 from core.data_processor import DataLoader
 from core.model import Model
-
-
-def plot_results(predicted_data, true_data):
-    fig = plt.figure(facecolor='white')
-    ax = fig.add_subplot(111)
-    ax.plot(true_data, label='True Data')
-    plt.plot(predicted_data, label='Prediction')
-    plt.legend()
-    plt.show()
-
-
-def plot_results_multiple(predicted_data, true_data, prediction_len):
-    fig = plt.figure(facecolor='white')
-    ax = fig.add_subplot(111)
-    ax.plot(true_data, label='True Data')
-    # Pad the list of predictions to shift it in the graph to it's correct start
-    for i, data in enumerate(predicted_data):
-        padding = [None for p in range(i * prediction_len)]
-        plt.plot(padding + data, label='Prediction')
-        plt.legend()
-    plt.show()
+from core.utils import Plot
 
 
 def main():
@@ -62,8 +41,7 @@ def main():
         data_gen=data.generate_train_batch(
             seq_len=configs['data']['sequence_length'],
             batch_size=configs['training']['batch_size'],
-            normalise=configs['data']['normalise']
-        ),
+            normalise=configs['data']['normalise']),
         epochs=configs['training']['epochs'],
         batch_size=configs['training']['batch_size'],
         steps_per_epoch=steps_per_epoch,
@@ -76,11 +54,12 @@ def main():
     )
 
     predictions = model.predict_sequences_multiple(x_test, configs['data']['sequence_length'], configs['data']['sequence_length'])
-    # predictions = model.predict_sequence_full(x_test, configs['data']['sequence_length'])
+    # predictions = model.predict_sequences_full(x_test, configs['data']['sequence_length'])
     # predictions = model.predict_point_by_point(x_test)
 
-    plot_results_multiple(predictions, y_test, configs['data']['sequence_length'])
-    # plot_results(predictions, y_test)
+    plot = Plot()
+    plot.plot_results_multiple(predictions, y_test, configs['data']['sequence_length'])
+    # plot.plot_results(predictions, y_test)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,6 @@ class DataLoader:
     """
     A class for loading and transforming data for the lstm model
     """
-
     def __init__(self, filename, split, cols):
         dataframe = pd.read_csv(filename)
         i_split = int(len(dataframe) * split)
@@ -26,11 +25,12 @@ class DataLoader:
         for i in range(self.len_test - seq_len):
             data_windows.append(self.data_test[i:i + seq_len])
 
-        data_windows = np.array(data_windows).astype(float)
+        data_windows = np.array(data_windows).astype(float)  # shape: [sample_size, sequence_length, embedding_size]
         data_windows = self.normalise_windows(data_windows, single_window=False) if normalise else data_windows
 
-        x = data_windows[:, :-1]
-        y = data_windows[:, -1, [0]]
+        x = data_windows[:, :-1]  # shape: [sample_size, timestep_size, embedding_size]
+        y = data_windows[:, -1, [0]]  # shape: [sample_size, 1]
+
         return x, y
 
     def get_train_data(self, seq_len, normalise):
@@ -42,7 +42,7 @@ class DataLoader:
         data_x = []
         data_y = []
         for i in range(self.len_train - seq_len):
-            x, y = self._next_window(i, seq_len, normalise)
+            x, y = self.next_window(i, seq_len, normalise)
             data_x.append(x)
             data_y.append(y)
         return np.array(data_x), np.array(data_y)
@@ -60,20 +60,20 @@ class DataLoader:
                     # stop-condition for a smaller final batch if data doesn't divide evenly
                     yield np.array(x_batch), np.array(y_batch)
                     i = 0
-                x, y = self._next_window(i, seq_len, normalise)
+                x, y = self.next_window(i, seq_len, normalise)
                 x_batch.append(x)
                 y_batch.append(y)
                 i += 1
             yield np.array(x_batch), np.array(y_batch)
 
-    def _next_window(self, i, seq_len, normalise):
+    def next_window(self, i, seq_len, normalise):
         """
         Generates the next data window from the given index location i
         """
         window = self.data_train[i:i + seq_len]
         window = self.normalise_windows(window, single_window=True)[0] if normalise else window
-        x = window[:-1]
-        y = window[-1, [0]]
+        x = window[:-1]  # shape: [timestep_size, embedding_size]
+        y = window[-1, [0]]  # shape: [1]
         return x, y
 
     def normalise_windows(self, window_data, single_window=False):
@@ -81,10 +81,10 @@ class DataLoader:
         Normalise window with a base value of zero
         """
         normalised_data = []
-        window_data = [window_data] if single_window else window_data
+        window_data = [window_data] if single_window else window_data  # train: 2-d(true), test: 3-d(false)
         for window in window_data:
             normalised_window = []
-            for col_i in range(window.shape[1]):
+            for col_i in range(window.shape[1]):  # multi-dimensional normalise
                 normalised_col = [((float(p) / float(window[0, col_i])) - 1) for p in window[:, col_i]]
                 normalised_window.append(normalised_col)
             # reshape and transpose array back into original multidimensional format
