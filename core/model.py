@@ -1,11 +1,11 @@
 import os
+import time
 import numpy as np
-import datetime as dt
 from numpy import newaxis
 from core.utils import Timer
-from keras.layers import Dense, Activation, Dropout, LSTM
+from keras.layers import Dense, Dropout, LSTM
 from keras.models import Sequential, load_model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import EarlyStopping, ModelCheckpoint, LearningRateScheduler, TensorBoard
 
 
 class Model:
@@ -39,52 +39,33 @@ class Model:
                 self.model.add(Dropout(dropout_rate))
 
         self.model.compile(loss=configs['model']['loss'], optimizer=configs['model']['optimizer'])
-
         print('[Model] Model Compiled')
         timer.stop()
 
-    def train(self, x, y, epochs, batch_size, save_dir):
-        timer = Timer()
-        timer.start()
-        print('[Model] Training Started')
-        print('[Model] %s epochs, %s batch size' % (epochs, batch_size))
-
-        save_fname = os.path.join(save_dir, '%s-e%s.h5' % (dt.datetime.now().strftime('%d%m%Y-%H%M%S'), str(epochs)))
-        callbacks = [
-            EarlyStopping(monitor='val_loss', patience=2),
-            ModelCheckpoint(filepath=save_fname, monitor='val_loss', save_best_only=True)
-        ]
-        self.model.fit(
-            x,
-            y,
-            epochs=epochs,
-            batch_size=batch_size,
-            callbacks=callbacks
-        )
-        self.model.save(save_fname)
-
-        print('[Model] Training Completed. Model saved as %s' % save_fname)
-        timer.stop()
-
-    def train_generator(self, data_gen, epochs, batch_size, steps_per_epoch, save_dir):
+    def train_generator(self, train_loader, val_loader, epochs, batch_size, steps_per_epoch, validation_steps, save_dir, log_dir):
         timer = Timer()
         timer.start()
         print('[Model] Training Started')
         print('[Model] %s epochs, %s batch size, %s batches per epoch' % (epochs, batch_size, steps_per_epoch))
 
-        save_fname = os.path.join(save_dir, '%s-e%s.h5' % (dt.datetime.now().strftime('%d%m%Y-%H%M%S'), str(epochs)))
+        time_format = time.localtime(time.time())
+        model_fname = 'model-%s-e{epoch:02d}-{val_loss:.5f}.h5' % (time.strftime('%Y%m%d%H%M%S', time_format))
+        model_save_path = os.path.join(save_dir, model_fname)
+        lr_schedule = lambda epoch: 0.001 * 0.95 ** epoch
+        learning_rate = np.array([lr_schedule(i) for i in range(epochs)])
         callbacks = [
-            ModelCheckpoint(filepath=save_fname, monitor='loss', save_best_only=True)
+            ModelCheckpoint(filepath=model_save_path, monitor='val_loss', save_best_only=False),
+            LearningRateScheduler(lambda epoch: float(learning_rate[epoch])),
+            EarlyStopping(monitor='val_loss', patience=2, verbose=1),
+            TensorBoard(log_dir=log_dir, write_graph=True)
         ]
-        self.model.fit_generator(
-            data_gen,
-            steps_per_epoch=steps_per_epoch,
-            epochs=epochs,
-            callbacks=callbacks,
-            workers=1
-        )
-
-        print('[Model] Training Completed. Model saved as %s' % save_fname)
+        self.model.fit_generator(train_loader,
+                                 steps_per_epoch=steps_per_epoch,
+                                 epochs=epochs,
+                                 validation_data=val_loader,
+                                 validation_steps=validation_steps,
+                                 callbacks=callbacks)
+        print('[Model] Training Completed. Model saved as %s' % model_save_path)
         timer.stop()
 
     def predict_point_by_point(self, data):

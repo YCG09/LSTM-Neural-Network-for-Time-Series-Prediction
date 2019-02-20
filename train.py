@@ -8,47 +8,48 @@ from core.utils import Plot
 
 def main():
     configs = json.load(open('config.json', 'r'))
-    if not os.path.exists(configs['model']['save_dir']): os.makedirs(configs['model']['save_dir'])
+    if not os.path.exists(configs['model']['save_dir']):
+        os.makedirs(configs['model']['save_dir'])
+    if not os.path.exists(configs['model']['log_dir']):
+        os.makedirs(configs['model']['log_dir'])
 
-    data = DataLoader(
-        os.path.join('data', configs['data']['filename']),
+    data_loader = DataLoader(
+        os.path.join('data', configs['data']['filename_train']),
         configs['data']['train_test_split'],
-        configs['data']['columns']
+        configs['data']['columns'],
+        is_training=True
     )
 
     model = Model()
     model.build_model(configs)
-
-    '''
-    # in-memory training
-    x, y = data.get_train_data(
-        seq_len=configs['data']['sequence_length'],
-        normalise=configs['data']['normalise']
-    )
-
-    model.train(
-        x,
-        y,
-        epochs = configs['training']['epochs'],
-        batch_size = configs['training']['batch_size'],
-        save_dir = configs['model']['save_dir']
-    )
-    '''
-
-    # out-of memory generative training
-    steps_per_epoch = math.ceil((data.len_train - configs['data']['sequence_length']) / configs['training']['batch_size'])
+    steps_per_epoch = math.ceil((data_loader.len_train - configs['data']['sequence_length']) / configs['training']['batch_size'])
+    validation_steps = math.ceil((data_loader.len_val - configs['data']['sequence_length']) / configs['training']['batch_size'])
     model.train_generator(
-        data_gen=data.generate_train_batch(
+        train_loader=data_loader.batch_generator(
             seq_len=configs['data']['sequence_length'],
             batch_size=configs['training']['batch_size'],
-            normalise=configs['data']['normalise']),
+            normalise=configs['data']['normalise'],
+            generator_type='train'),
+        val_loader=data_loader.batch_generator(
+            seq_len=configs['data']['sequence_length'],
+            batch_size=configs['training']['batch_size'],
+            normalise=configs['data']['normalise'],
+            generator_type='val'),
         epochs=configs['training']['epochs'],
         batch_size=configs['training']['batch_size'],
         steps_per_epoch=steps_per_epoch,
-        save_dir=configs['model']['save_dir']
+        validation_steps=validation_steps,
+        save_dir=configs['model']['save_dir'],
+        log_dir=configs['model']['log_dir']
     )
 
-    x_test, y_test = data.get_test_data(
+    test_data_loader = DataLoader(
+        os.path.join('data', configs['data']['filename_test']),
+        0,
+        configs['data']['columns'],
+        is_training=False
+    )
+    x_test, y_test = test_data_loader.get_test_data(
         seq_len=configs['data']['sequence_length'],
         normalise=configs['data']['normalise']
     )
